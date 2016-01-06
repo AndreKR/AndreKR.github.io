@@ -1,0 +1,134 @@
+<html>
+	<head>
+		<style>
+			body { padding: 10px; font-family: sans-serif; font-size: 13px; }
+			div { line-height: 30px; }
+		</style>
+
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.0.0/styles/solarized-dark.min.css">
+		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.0.0/highlight.min.js"></script>
+
+		<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+		<script>
+			$(function () {
+
+				$('[data-bind=url]').val(window.localStorage.getItem('url') || 'http://localhost:9200');
+				$('[data-bind=index]').val(window.localStorage.getItem('index'));
+				$('[data-bind=id]').val(window.localStorage.getItem('id'));
+				$('[data-bind=field]').val(window.localStorage.getItem('field'));
+
+				$(document).on('click', '[data-action]', function () {
+
+					var action = $(this).attr('data-action');
+
+					var url = $('[data-bind=url]').val();
+					var index = $('[data-bind=index]').val();
+					var type = $('[data-bind=type]').val();
+					var id = $('[data-bind=id]').val();
+					var field = $('[data-bind=field]').val();
+
+					var method, path, request = {};
+
+					window.localStorage.setItem('url', url);
+					window.localStorage.setItem('index', index);
+					window.localStorage.setItem('id', id);
+					window.localStorage.setItem('field', field);
+
+					if (action == 'show_indices')
+					{
+						method = 'get';
+						path = '_aliases';
+					}
+
+					if (action == 'show_mapping')
+					{
+						method = 'get';
+						path = index+'/'+type+'/_mapping';
+					}
+
+					if (action == 'show_document')
+					{
+						method = 'post';
+						path = index+'/'+type+'/_search';
+						request = {
+							size: 1,
+							fields: '*',
+							_source: '*'
+						};
+					}
+
+					if (action == 'show_terms')
+					{
+						method = 'post';
+						path = index+'/'+type+'/_search';
+
+						request = {
+							size: 0,
+							aggs: {
+								the_terms: {
+									terms: {
+										field: field,
+										size: 0
+									}
+								}
+							}
+						};
+
+						if (id)
+						{
+							request.query = {
+								bool: {
+									filter: [
+										{
+											ids: {
+												type: type,
+												values: [id]
+											}
+										}
+									]
+								}
+							};
+						}
+					}
+
+					$.ajax({
+						url: url+'/'+path,
+						data: JSON.stringify(request),
+						method: method
+					}).done(function (response) {
+						$('[data-bind=output]').text(JSON.stringify(response, null, 2));
+						hljs.highlightBlock($('[data-bind=output]').get(0));
+					}).fail(function (status) {
+						var data, message;
+
+						try {
+							data = JSON.parse(status.responseText);
+							message = JSON.stringify(data, null, 2);
+						} catch (e) {
+							message = status.responseText;
+						}
+
+						alert('Error:\n\n' + message);
+					});
+
+				});
+			});
+		</script>
+	</head>
+	<body>
+	<div>
+		<label>URL: <input data-bind="url"></label><br>
+		<button data-action="show_indices" type="button">Show indices and aliases</button><br>
+		<label>Index: <input data-bind="index"></label><br>
+		<label>Type: <input data-bind="type" value="default"></label><br>
+		<button data-action="show_mapping" type="button">Show mapping</button> <button data-action="show_document" type="button">Show one document</button><br>
+		<label>Document ID: <input data-bind="id"></label> (optional)<br>
+		<label>Field: <input data-bind="field"></label><br>
+		<button data-action="show_terms" type="button">Show terms</button><br>
+		<br>
+	</div>
+	<pre data-bind="output" class="json">
+
+	</pre>
+	</body>
+</html>
