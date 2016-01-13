@@ -1,8 +1,70 @@
 <html>
 	<head>
 		<style>
+
+			/* General */
+
 			body { padding: 10px; font-family: sans-serif; font-size: 13px; }
-			div { line-height: 30px; }
+
+			/* Tabs */
+
+			ul#tabs {
+				list-style-type: none;
+				padding: 0;
+				text-align: left;
+			}
+			ul#tabs > li {
+				display: inline-block;
+				background-color: #c7c7c7;
+				border-bottom: solid 5px #8a8a8a;
+				padding: 5px 20px;
+				margin-bottom: 4px;
+				color: #fff;
+				cursor: pointer;
+			}
+			ul#tabs > li:hover {
+				background-color: #8a8a8a;
+			}
+			ul#tabs > li.active {
+				background-color: #8a8a8a;
+			}
+			ul#tab {
+				list-style-type: none;
+				margin: 0;
+				padding: 0;
+				padding-left: 10px;
+			}
+			ul#tab > li {
+				display: none;
+			}
+			ul#tab > li.active {
+				display: block;
+			}
+
+			/* Tab "Show mapping" */
+
+			div.form { line-height: 30px; }
+
+			/* Tab "Status info" */
+
+			li.status-info a {
+				font-family: monospace;
+			}
+
+			li.status-info > div {
+				padding: 10px;
+				border: 1px solid #808080;
+			}
+			li.status-info > div > div {
+				display: block;
+				padding-bottom: 10px;
+				border-bottom: 1px solid #808080;
+			}
+
+			li.status-info pre.limited {
+				max-height: 55px;
+				overflow: hidden;
+			}
 		</style>
 
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.0.0/styles/solarized-dark.min.css">
@@ -12,12 +74,27 @@
 		<script>
 			$(function () {
 
+				// Tabs
+
+				$("ul#tabs li").click(function(e){
+					if (!$(this).hasClass("active")) {
+						var tabNum = $(this).index();
+						var nthChild = tabNum+1;
+						$("ul#tabs li.active").removeClass("active");
+						$(this).addClass("active");
+						$("ul#tab li.active").removeClass("active");
+						$("ul#tab li:nth-child("+nthChild+")").addClass("active");
+					}
+				});
+
+				// Tab "Show mapping"
+
 				$('[data-bind=url]').val(window.localStorage.getItem('url') || 'http://localhost:9200');
 				$('[data-bind=index]').val(window.localStorage.getItem('index'));
 				$('[data-bind=id]').val(window.localStorage.getItem('id'));
 				$('[data-bind=field]').val(window.localStorage.getItem('field'));
 
-				$(document).on('click', '[data-action]', function () {
+				$(document).on('click', '[data-bind=show_mapping] [data-action]', function () {
 
 					var action = $(this).attr('data-action');
 
@@ -112,23 +189,92 @@
 					});
 
 				});
+
+				// Tab "Status info"
+
+				$(document).on('click', '[data-bind=status_info] [data-action=update]', function () {
+
+					window.localStorage.setItem('url', $('[data-bind=url]').val());
+
+					$('[data-bind=status_info] > div').each(function () {
+						var $this = $(this);
+						var url = $('[data-bind=url]').val() + '/' + $this.attr('data-url');
+
+						$this.find('a[data-bind=link]').attr('href', url);
+						$this.find('a[data-bind=link]').text(url);
+
+						$this.find('pre').text('Loading...');
+
+						$.ajax({
+							url: url,
+							method: 'GET'
+						}).done(function (response) {
+							$this.find('pre').text(response);
+						}).fail(function (status) {
+							var data, message;
+
+							try {
+								data = JSON.parse(status.responseText);
+								message = JSON.stringify(data, null, 2);
+							} catch (e) {
+								message = status.responseText;
+							}
+
+							$this.find('pre').text('Error:\n\n' + message);
+						});
+					});
+
+					$('[data-bind=status_info] > div a[data-url]').each(function () {
+						var $this = $(this);
+						var url = $('[data-bind=url]').val() + '/' + $this.attr('data-url');
+
+						$this.attr('href', url);
+					});
+
+				});
+
+				$('[data-bind=status_info] [data-action=update]').click();
+
 			});
 		</script>
 	</head>
 	<body>
-	<div>
-		<label>URL: <input data-bind="url"></label><br>
-		<button data-action="show_indices" type="button">Show indices and aliases</button><br>
-		<label>Index: <input data-bind="index"></label><br>
-		<label>Type: <input data-bind="type" value="default"></label><br>
-		<button data-action="show_mapping" type="button">Show mapping</button> <button data-action="show_document" type="button">Show one document</button><br>
-		<label>Document ID: <input data-bind="id"></label> (optional)<br>
-		<label>Field: <input data-bind="field"></label><br>
-		<button data-action="show_terms" type="button">Show terms</button><br>
-		<br>
-	</div>
-	<pre data-bind="output" class="json">
+	<label>URL: <input data-bind="url"></label><br>
+	<ul id="tabs">
+		<li class="active">Show mapping</li>
+		<li>Status info</li>
+	</ul>
+	<ul id="tab">
+		<li class="active" data-bind="show_mapping">
+			<div class="form">
+				<button data-action="show_indices" type="button">Show indices and aliases</button><br>
+				<label>Index: <input data-bind="index"></label><br>
+				<label>Type: <input data-bind="type" value="default"></label><br>
+				<button data-action="show_mapping" type="button">Show mapping</button> <button data-action="show_document" type="button">Show one document</button><br>
+				<label>Document ID: <input data-bind="id"></label> (optional)<br>
+				<label>Field: <input data-bind="field"></label><br>
+				<button data-action="show_terms" type="button">Show terms</button><br>
+				<br>
+			</div>
+			<pre data-bind="output" class="json">
 
-	</pre>
+			</pre>
+		</li>
+		<li class="status-info" data-bind="status_info">
+			<button data-action="update" type="button">Update</button><br><br>
+			<div data-url="_cat/indices?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/indices?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/aliases?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/aliases?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/shards?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/shards?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/segments?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/segments?help">(?)</a></div><pre class="limited"></pre><a href="javascript:" onclick="$(this).parent().find('pre').removeClass('limited'); this.parentNode.removeChild(this);">...</a></div>
+			<div data-url="_cat/health?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/health?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/nodes?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/nodes?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/nodeattrs?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/nodeattrs?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/recovery?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/recovery?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/pending_tasks?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/pending_tasks?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/thread_pool?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/thread_pool?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/plugins?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/plugins?help">(?)</a></div><pre></pre></div>
+			<div data-url="_cat/repositories?v"><div><a target="_blank" data-bind="link"></a> <a target="_blank" data-url="_cat/repositories?help">(?)</a></div><pre></pre></div>
+		</li>
+	</ul>
 	</body>
 </html>
