@@ -104,7 +104,7 @@
 					var id = $('[data-bind=id]').val();
 					var field = $('[data-bind=field]').val();
 
-					var method, path, request = {};
+					var method, path, request = null;
 
 					window.localStorage.setItem('url', url);
 					window.localStorage.setItem('index', index);
@@ -170,7 +170,7 @@
 
 					$.ajax({
 						url: url+'/'+path,
-						data: JSON.stringify(request),
+						data: request !== null ? JSON.stringify(request) : null,
 						method: method
 					}).done(function (response) {
 						$('[data-bind=output]').text(JSON.stringify(response, null, 2));
